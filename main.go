@@ -11,10 +11,13 @@ import (
 	"time"
 )
 
-var msgStorage = make(map[string][]string)
-var mu sync.RWMutex
+var (
+	msgStorage    = make(map[string][]string)
+	requestsQueue []*http.Request
+	mu            sync.RWMutex
+)
 
-func getMessage(mp map[string][]string, key string, timeout time.Duration) (string, error) {
+func getMessage(mp map[string][]string, key string, timeout time.Duration, r *http.Request) (string, error) {
 	msgChan := make(chan string, 1)
 
 	// костыль.. тк выбор кейсов рандомен
@@ -29,10 +32,14 @@ func getMessage(mp map[string][]string, key string, timeout time.Duration) (stri
 		case value := <-msgChan:
 			return value, nil
 		case <-timeoutChan:
-			return "", errors.New("No item found")
+			mu.Lock()
+			requestsQueue = requestsQueue[1:]
+			mu.Unlock()
+			return "", errors.New("No message found")
 		default:
 			mu.Lock()
-			if item, ok := mp[key]; ok && len(item) > 0 {
+			if item, ok := mp[key]; ok && len(item) > 0 && requestsQueue[0] == r {
+				requestsQueue = requestsQueue[1:]
 				mp[key] = mp[key][1:]
 				msgChan <- item[0]
 			}
@@ -46,10 +53,11 @@ func handleMessage(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
+		requestsQueue = append(requestsQueue, r)
 		timeout := r.URL.Query().Get("timeout")
 		timeoutInt, _ := strconv.Atoi(timeout)
 
-		item, err := getMessage(msgStorage, key, time.Duration(timeoutInt))
+		item, err := getMessage(msgStorage, key, time.Duration(timeoutInt), r)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			return
