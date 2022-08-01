@@ -62,7 +62,11 @@ func handleMessage(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		fmt.Fprintf(w, item)
+		_, err = fmt.Fprintf(w, item)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	case "PUT":
 		v := r.URL.Query().Get("v")
 		if v == "" {
