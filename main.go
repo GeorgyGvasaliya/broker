@@ -23,7 +23,7 @@ func getMessage(mp map[string][]string, key string, timeout time.Duration, r *ht
 	// костыль.. тк выбор кейсов рандомен
 	duration := time.Second * timeout
 	if timeout == 0 {
-		duration = time.Microsecond
+		duration = time.Nanosecond
 	}
 
 	timeoutChan := time.After(duration)
