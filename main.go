@@ -53,7 +53,9 @@ func handleMessage(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
+		mu.Lock()
 		requestsQueue = append(requestsQueue, r)
+		mu.Unlock()
 		timeout := r.URL.Query().Get("timeout")
 		timeoutInt, _ := strconv.Atoi(timeout)
 
